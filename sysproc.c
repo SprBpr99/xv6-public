@@ -89,3 +89,10 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+// Just introduce sys_srrp and call srrp in it.
+int
+sys_srrp(void)
+{
+  return srrp();
+}
