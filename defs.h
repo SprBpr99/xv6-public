@@ -120,6 +120,8 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+// Define srrp header in proc.c section.
+int             srrp(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
