@@ -23,6 +23,8 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+// Define srrp header in system calls section.
+int srrp(void);
 
 // ulib.c
 int stat(const char*, struct stat*);
