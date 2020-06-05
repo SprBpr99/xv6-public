@@ -38,10 +38,10 @@ struct cpu*
 mycpu(void)
 {
   int apicid, i;
-  
+
   if(readeflags()&FL_IF)
     panic("mycpu called with interrupts enabled\n");
-  
+
   apicid = lapicid();
   // APIC IDs are not guaranteed to be contiguous. Maybe we should have
   // a reverse map, or reserve a register to store &cpus[i].
@@ -124,7 +124,7 @@ userinit(void)
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
   p = allocproc();
-  
+
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
@@ -275,7 +275,7 @@ wait(void)
   struct proc *p;
   int havekids, pid;
   struct proc *curproc = myproc();
-  
+
   acquire(&ptable.lock);
   for(;;){
     // Scan through table looking for exited children.
@@ -325,7 +325,7 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
-  
+
   for(;;){
     // Enable interrupts on this processor.
     sti();
@@ -418,7 +418,7 @@ void
 sleep(void *chan, struct spinlock *lk)
 {
   struct proc *p = myproc();
-  
+
   if(p == 0)
     panic("sleep");
 
@@ -531,4 +531,85 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+// This function swap two struct proc*.
+void swap(struct proc** a, struct proc** b)
+{
+    struct proc* t = *a;
+    *a = *b;
+    *b = t;
+}
+
+int partition (struct proc* arr[], int low, int high)
+{
+    struct proc* pivot = arr[high];    // Pivot.
+    int i = (low - 1);  // Index of smaller element.
+    for (int j = low; j <= high- 1; j++)
+    {
+        // If current element is smaller than the pivot...
+        if (arr[j] -> sz < pivot -> sz)
+        {
+            i++;    // Increment index of smaller element.
+            swap(&arr[i], &arr[j]);   // Swap two element.
+        }
+    }
+    // Put pivot element in the correct location.
+    swap(&arr[i + 1], &arr[high]);
+    // Return index of pivot.
+    return (i + 1);
+}
+
+void quickSort(struct proc* arr[], int low, int high)
+{
+    if (low < high)
+    {
+        /* pi is partitioning index, arr[p] is now
+           at right place. */
+        int pi = partition(arr, low, high);
+
+        // Separately sort elements before
+        // partition and after partition.
+        quickSort(arr, low, pi - 1);
+        quickSort(arr, pi + 1, high);
+    }
+}
+
+int
+srrp()
+{
+  struct proc *procs[NPROC];    // Array of RUNNING and RUNNABLE processes.
+  struct proc *p;
+  int i = 0;
+  sti();        // Set interrupt flag.
+  acquire(&ptable.lock);
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) // Iterate through all processes.
+  {
+    if (p -> state == SLEEPING)   // If the state is SLEEPING...
+      {
+        // Do nothing!
+      }
+    else if (p -> state == RUNNING)   // If the state is RUNNING...
+      {
+        procs[i++] = p;   // Put p in array and increase i.
+      }
+    else if (p -> state == RUNNABLE)    // If the state is RUNNABLE...
+      {
+        procs[i++] = p;   // Put p in array and increase i.
+      }
+  }
+  release(&ptable.lock);
+  quickSort(procs, 0, i - 1);   // Sort procs array by size of each proc.
+  cprintf("%s\n", "--------------------------------------------");
+  cprintf("name \t pid \t state \t\t size \t \n");    // Header of table.
+  cprintf("%s\n", "--------------------------------------------");
+  for (int j = 0; j < i; j++)   // Iterate through all RUNNING and RUNNABLE processes.
+  {
+    if (procs[j] -> state == RUNNING)    // If the state is RUNNING...
+      cprintf("%s \t %d  \t RUNNING \t %d \t \n", procs[j] -> name, procs[j] -> pid, procs[j] -> sz);
+    if (procs[j] -> state == RUNNABLE)   // If the state is RUNNABLE...
+      cprintf("%s \t %d  \t RUNNABLE \t %d \t \n", procs[j] -> name, procs[j] -> pid, procs[j] -> sz);
+  }
+  cprintf("%s\n", "--------------------------------------------");
+  return 22;
 }
