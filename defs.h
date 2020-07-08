@@ -124,6 +124,8 @@ void            yield(void);
 void            update_proc_statistics(void);
 // Define waitx header in proc.c section.
 int             waitx(int*, int*);
+// Define set_priority header in proc.c section.
+int             set_priority(int);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
