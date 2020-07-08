@@ -23,6 +23,8 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+// Define waitx header in system calls section.
+int waitx(int* waiting_time, int* running_time);
 
 // ulib.c
 int stat(const char*, struct stat*);
