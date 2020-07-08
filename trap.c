@@ -51,6 +51,9 @@ trap(struct trapframe *tf)
     if(cpuid() == 0){
       acquire(&tickslock);
       ticks++;
+      // Call update_proc_statistics...
+      // to update running_time, runnable_time and sleeping_time.
+      update_proc_statistics();
       wakeup(&ticks);
       release(&tickslock);
     }
