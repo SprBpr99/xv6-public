@@ -22,5 +22,5 @@
 #define SYS_close  21
 // Assign number 22 to SYS_waitx.
 #define SYS_waitx  22
-// Assign number 22 to SYS_set_priority.
+// Assign number 23 to SYS_set_priority.
 #define SYS_set_priority  23
