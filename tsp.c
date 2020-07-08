@@ -26,6 +26,7 @@ int main(int argc, char* argv[])
     set_priority(70);
     heavy_func(100); // Takes less time.
     printf(1, "%s\n", "child"); // Print second.
+    sleep(5);
     exit();
   }
   else
@@ -34,6 +35,7 @@ int main(int argc, char* argv[])
     set_priority(30);
     heavy_func(1000000); // Takes more time.
     printf(1, "%s\n", "parent"); // Print first.
+    sleep(5);
     exit();
   }
 }
