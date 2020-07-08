@@ -119,6 +119,8 @@ found:
   p -> runnable_time = 0;
   p -> sleeping_time = 0;
 
+  p -> priority = 60;
+
   return p;
 }
 
@@ -368,6 +370,29 @@ waitx(int* waiting_time, int* running_time)
   }
 }
 
+// To find a Process with minimum priority.
+// If it can't find any RUNNABLE process, returns 0.
+struct proc* find_best_proc()
+{
+  struct proc* p;
+  struct proc* best_p = 0; // Process with minimum priority.
+
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->state == RUNNABLE)
+    {
+      if (best_p == 0) // For the first RUNNABLE process.
+        best_p = p;
+      else
+      {
+        if (p -> priority < best_p -> priority)
+          best_p = p;
+      }
+    }
+  }
+  return best_p;
+}
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -389,9 +414,14 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
+    // for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    //   if(p->state != RUNNABLE)
+    //     continue;
+
+    // Replace round robin scheduler with a priority based scheduler.
+    p = find_best_proc();
+    if (p != 0)
+    {
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
@@ -614,4 +644,17 @@ update_proc_statistics()
     }
   }
   release(&ptable.lock);
+}
+
+// To change the priority of the current process.
+// it returns the last priority of the process.
+int
+set_priority(int priority)
+{
+  if (priority < 0 || priority > 100)
+    return myproc() -> priority; // Save the last priority.
+  // Chage the priority.
+  int last_priority = myproc() -> priority;
+  myproc() -> priority = priority;
+  return last_priority;
 }
