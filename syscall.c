@@ -105,6 +105,8 @@ extern int sys_write(void);
 extern int sys_uptime(void);
 // Define sys_waitx header.
 extern int sys_waitx(void);
+// Define sys_set_priority header.
+extern int sys_set_priority(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -129,8 +131,10 @@ static int (*syscalls[])(void) = {
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
 [SYS_waitx]   sys_waitx,
+[SYS_set_priority]   sys_set_priority,
 };
 // Add sys_waitx system call to array above.
+// Add sys_set_priority system call to array above.
 
 void
 syscall(void)
