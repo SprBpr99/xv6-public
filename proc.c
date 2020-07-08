@@ -117,7 +117,7 @@ found:
   p -> end_time = 0;
   p -> running_time = 0;
   p -> runnable_time = 0;
-  p -> sleep_time = 0;
+  p -> sleeping_time = 0;
 
   return p;
 }
@@ -590,7 +590,7 @@ procdump(void)
   }
 }
 
-// Update running_time,runnable_time and sleep_time every tick.
+// Update running_time,runnable_time and sleeping_time every tick.
 void
 update_proc_statistics()
 {
@@ -607,7 +607,7 @@ update_proc_statistics()
         p -> runnable_time++;
         break;
       case SLEEPING:
-        p -> sleep_time++;
+        p -> sleeping_time++;
         break;
       default:
         break;
