@@ -107,3 +107,16 @@ sys_waitx(void)
 
   return waitx(waiting_time, running_time);
 }
+
+// Just introduce sys_set_priority and call set_priority in it.
+int
+sys_set_priority(void)
+{
+  int priority;
+
+  // To handle the error "‘priority’ is used uninitialized in this function".
+  if (argint(0, &priority) < 0)
+    return -1;
+
+  return set_priority(priority);
+}
