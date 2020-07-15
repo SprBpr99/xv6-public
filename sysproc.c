@@ -89,3 +89,47 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+// Just introduce sys_waitx and call waitx in it.
+int
+sys_waitx(void)
+{
+  int* waiting_time;
+  int* running_time;
+
+  // To handle the error "‘waiting_time’ is used uninitialized in this function".
+  if (argptr(0, (char**)&waiting_time, sizeof(int)) < 0)
+    return -1;
+
+  // To handle the error "‘running_time’ is used uninitialized in this function".
+  if (argptr(1, (char**)&running_time, sizeof(int)) < 0)
+    return -1;
+
+  return waitx(waiting_time, running_time);
+}
+
+// Just introduce sys_set_priority and call set_priority in it.
+int
+sys_set_priority(void)
+{
+  int priority;
+
+  // To handle the error "‘priority’ is used uninitialized in this function".
+  if (argint(0, &priority) < 0)
+    return -1;
+
+  return set_priority(priority);
+}
+
+// Just introduce sys_nice and call nice in it.
+int
+sys_nice(void)
+{
+  int decrement;
+
+  // To handle the error "‘decrement’ is used uninitialized in this function".
+  if (argint(0, &decrement) < 0)
+    return -1;
+
+  return nice(decrement);
+}
