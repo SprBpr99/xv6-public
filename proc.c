@@ -38,10 +38,10 @@ struct cpu*
 mycpu(void)
 {
   int apicid, i;
-  
+
   if(readeflags()&FL_IF)
     panic("mycpu called with interrupts enabled\n");
-  
+
   apicid = lapicid();
   // APIC IDs are not guaranteed to be contiguous. Maybe we should have
   // a reverse map, or reserve a register to store &cpus[i].
@@ -112,6 +112,15 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  // Initiate new fields.
+  p -> start_time = ticks;
+  p -> end_time = 0;
+  p -> running_time = 0;
+  p -> runnable_time = 0;
+  p -> sleeping_time = 0;
+
+  p -> priority = 60;
+
   return p;
 }
 
@@ -124,7 +133,7 @@ userinit(void)
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
   p = allocproc();
-  
+
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
@@ -263,6 +272,10 @@ exit(void)
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
+
+  // Save the exit time in end_time.
+  curproc -> end_time = ticks;
+
   sched();
   panic("zombie exit");
 }
@@ -275,7 +288,7 @@ wait(void)
   struct proc *p;
   int havekids, pid;
   struct proc *curproc = myproc();
-  
+
   acquire(&ptable.lock);
   for(;;){
     // Scan through table looking for exited children.
@@ -311,6 +324,119 @@ wait(void)
   }
 }
 
+int
+waitx(int* waiting_time, int* running_time)
+{
+  struct proc *p;
+  int havekids, pid;
+  struct proc *curproc = myproc();
+
+  acquire(&ptable.lock);
+  for(;;){
+    // Scan through table looking for exited children.
+    havekids = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->parent != curproc)
+        continue;
+      havekids = 1;
+      if(p->state == ZOMBIE){
+        // Calculate waiting_time and running_time.
+        *waiting_time = p -> end_time - (p -> start_time + p -> running_time);
+        *running_time = p -> running_time;
+
+        // Found one.
+        pid = p->pid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        freevm(p->pgdir);
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        p->state = UNUSED;
+        release(&ptable.lock);
+        return pid;
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if(!havekids || curproc->killed){
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+    sleep(curproc, &ptable.lock);  //DOC: wait-sleep
+  }
+}
+
+int turn = 0; // To Implement RR scheduler in third queue.
+
+// To find a Process with minimum priority.
+// If it can't find any RUNNABLE process, returns 0.
+struct proc* find_best_proc()
+{
+  struct proc* p;
+  struct proc* best_p = 0;            // Process with minimum priority.
+  struct proc *first_queue[NPROC];    // First Queue with priority scheduler.
+  struct proc *second_queue[NPROC];   // Second Queue with FIFO scheduler.
+  struct proc *third_queue[NPROC];    // Third Queue with RR scheduler.
+  int first_idx = 0, second_idx = 0, third_idx = 0; // Initialize indexes.
+  int max_priority = -1;              // Initialize max_priority.
+  int min_start_time = 10000000;      // Initialize min_start_time.
+
+  // Categorize processes by their priority.
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->state == RUNNABLE)
+    {
+      if (p -> priority < 10)
+      {
+        first_queue[first_idx++] = p;
+      }
+      else if (p -> priority < 30)
+      {
+        second_queue[second_idx++] = p;
+      }
+      else
+      {
+        third_queue[third_idx++] = p;
+      }
+    }
+  }
+
+  // Find the best proces.
+  if (first_idx > 0)
+  {
+    for (p = first_queue; p < &first_queue[first_idx - 1]; p++)
+    {
+      if (p -> priority > max_priority)
+      {
+        best_p = p;
+        max_priority = p - > priority;
+      }
+    }
+  }
+  else if (second_idx > 0)
+  {
+    for (p = second_queue; p < &second_queue[second_idx - 1]; p++)
+    {
+      if (p -> start_time < min_start_time)
+      {
+        best_p = p;
+        min_start_time = p - > start_time;
+      }
+    }
+  }
+  else if (third_idx > 0)
+  {
+    if (turn > third_idx - 1)
+      turn = 0;
+    best_p = third_queue[turn];
+  }
+  return best_p;
+}
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -325,16 +451,21 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
-  
+
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
+    // for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    //   if(p->state != RUNNABLE)
+    //     continue;
+
+    // Replace round robin scheduler with a Multi-level scheduler.
+    p = find_best_proc();
+    if (p != 0)
+    {
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
@@ -418,7 +549,7 @@ void
 sleep(void *chan, struct spinlock *lk)
 {
   struct proc *p = myproc();
-  
+
   if(p == 0)
     panic("sleep");
 
@@ -531,4 +662,58 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+// Update running_time,runnable_time and sleeping_time every tick.
+void
+update_proc_statistics()
+{
+  struct proc* p;
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    switch (p -> state)
+    {
+      case RUNNING:
+        p -> running_time++;
+        break;
+      case RUNNABLE:
+        p -> runnable_time++;
+        break;
+      case SLEEPING:
+        p -> sleeping_time++;
+        break;
+      default:
+        break;
+    }
+  }
+  release(&ptable.lock);
+}
+
+// To change the priority of the current process.
+// It returns the last priority of the process.
+int
+set_priority(int priority)
+{
+  if (priority < 0 || priority > 100)
+    return myproc() -> priority; // return the last priority.
+  // Chage the priority.
+  int last_priority = myproc() -> priority;
+  myproc() -> priority = priority;
+  return last_priority;
+}
+
+// To decrease the priority of the current process.
+// It returns -1 if new_priority is invalid else it returns 0.
+int
+nice(int decrement)
+{
+  int new_priority = myproc() -> priority - decrement;
+
+  if (new_priority < 0 || new_priority > 100)
+    return -1; // return -1 if new_priority is invalid.
+
+  // Decrease the priority.
+  myproc() -> priority = new_priority;
+  return 0;
 }
