@@ -408,23 +408,23 @@ struct proc* find_best_proc()
   // Find the best proces.
   if (first_idx > 0)
   {
-    for (p = first_queue; p < &first_queue[first_idx - 1]; p++)
+    for (int i = 0; i < first_idx; i++)
     {
-      if (p -> priority > max_priority)
+      if (first_queue[i] -> priority > max_priority)
       {
-        best_p = p;
-        max_priority = p - > priority;
+        best_p = first_queue[i];
+        max_priority = first_queue[i] -> priority;
       }
     }
   }
   else if (second_idx > 0)
   {
-    for (p = second_queue; p < &second_queue[second_idx - 1]; p++)
+    for (int i = 0; i < first_idx; i++)
     {
-      if (p -> start_time < min_start_time)
+      if (second_queue[i] -> start_time < min_start_time)
       {
-        best_p = p;
-        min_start_time = p - > start_time;
+        best_p = second_queue[i];
+        min_start_time = second_queue[i] -> start_time;
       }
     }
   }
